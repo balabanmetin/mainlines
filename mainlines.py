@@ -98,12 +98,25 @@ def subsample_align(nm, mins, size):
     return res
 
 
+def gen_med_score(nm):
+    """
+    compute occupancy scores for each taxa. Occupancy score is a real number between 0 and 1.
+    the score is equal to min(1,taxa_nongap_length/median_nongap_length)
+    """
+    name, mats = nm
+    non_gap_count = np.sum(mats != b'-', axis=1)
+    med_scores = np.clip(non_gap_count / np.median(non_gap_count), 0, 1)
+    med_scores_with_zeros = np.zeros(len(catalog))
+    med_scores_with_zeros[name] = med_scores
+    return med_scores_with_zeros
+
+
 if __name__ == "__main__":
     only_files = [join(sys.argv[1], f) for f in listdir(sys.argv[1]) if isfile(join(sys.argv[1], f))]
     np.random.seed(42)
     gap_thr = 0.95
-    concat_len = 5000
-    target_num = 100
+    concat_len = 500
+    target_num = 50
     names_and_mats = [fasta2mat(f, False, False) for f in only_files]
     names_and_mats_ungapped = [gap_filter(n, m, gap_thr) for n, m in names_and_mats]
     # union all taxon names
@@ -113,6 +126,8 @@ if __name__ == "__main__":
     name_to_id = {j: i for i, j in id_to_name.items()}
     # substitute names with ids
     names_and_mats_ungapped = [(np.array([name_to_id[ni] for ni in n]), m) for n, m in names_and_mats_ungapped]
+    # compute total median-normalized occupancy scores per taxa
+    tot_med_scores = sum([gen_med_score(nm) for nm in names_and_mats_ungapped])
 
     spec_counts = np.array(len(catalog) * [0])
     sites_per_gene = int(np.ceil(concat_len / len(names_and_mats_ungapped)))
@@ -172,7 +187,7 @@ if __name__ == "__main__":
     num_clusters = 0
     while tcur - tmin >= stop_cond and tmax - tcur >= stop_cond:
         numiter += 1
-        print(numiter)
+        #print(numiter)
         s = ["TreeCluster.py", "-i", fasttree_out, "-m", "max_clade", "-t", str(tcur), "-o", treecluster_out]
         call(s, stdout=nldef, stderr=nldef)
         with open(treecluster_out, "r") as tc_output:
@@ -190,8 +205,17 @@ if __name__ == "__main__":
         else:
             tmin = tcur
             tcur = (tmax + tcur) / 2
-    print(clusters)
-    print(num_clusters)
+
+    select = []
+    for ci, tags in clusters:
+        if ci == "-1":
+            select += tags
+        else:
+            hi_med, tag = sorted(zip(list(map(lambda x: tot_med_scores[name_to_id[x]],tags)),tags),reverse=True)[0]
+            select.append(tag)
+
+    for i in select:
+        print(i)
 
     # if not options.protein_seqs:
     #     s.append("-nt")
