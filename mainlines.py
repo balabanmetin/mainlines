@@ -77,7 +77,7 @@ def fasta2mat(ref_fp, prot_flag, mask_flag):
 
 
 def gap_filter(names, mats, thr=0.95):
-    keep = sum(mats != b'-') / len(names) >= thr
+    keep = np.sum(mats != b'-', axis=0) / len(names) >= (1 - thr)
     mats = mats[:, keep]
     # remove all gap sequences
     allgapseqs = (mats == b'-').all(axis=1)
@@ -87,8 +87,8 @@ def gap_filter(names, mats, thr=0.95):
 def subsample_align(nm, mins, size):
     name, mats = nm
     mins = np.random.choice([True, False], size=len(mins))
-    scores_1 = sum(mats[mins[name]] != b'-')  # number of nongaps for the least occupant
-    scores_2 = sum(mats != b'-')  # number of nongaps for all
+    scores_1 = np.sum(mats[mins[name]] != b'-', axis = 0)  # number of nongaps for the least occupant
+    scores_2 = np.sum(mats != b'-', axis=0)  # number of nongaps for all
     scores_3 = list(range(len(scores_1)))  # break ties randomly
     np.random.shuffle(scores_3)
     order = sorted(zip(scores_1, scores_2, scores_3, range(len(scores_1))), reverse=True)[:size]
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     only_files = [join(sys.argv[1], f) for f in listdir(sys.argv[1]) if isfile(join(sys.argv[1], f))]
     np.random.seed(42)
     gap_thr = 0.95
-    concat_len = 500
+    concat_len = 5000
     target_num = 50
     names_and_mats = [fasta2mat(f, False, False) for f in only_files]
     names_and_mats_ungapped = [gap_filter(n, m, gap_thr) for n, m in names_and_mats]
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         # find the least occupant taxa until this iteration
         mins = spec_counts == min(spec_counts)
         # find the gene with most copies of the least occupant taxa
-        scores = [sum(mins[n]) for n, _ in names_and_mats_ungapped]
+        scores = [np.sum(mins[n],axis=0) for n, _ in names_and_mats_ungapped]
         # if there is a tie, pick the gene with most taxa (ignore occupancy)
         tiebraker_scores = [len(n) for n, _ in names_and_mats_ungapped]
         max_scores = scores == max(scores)
