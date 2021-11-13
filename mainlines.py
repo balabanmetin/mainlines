@@ -116,7 +116,7 @@ if __name__ == "__main__":
     np.random.seed(42)
     gap_thr = 0.95
     concat_len = 5000
-    target_num = 50
+    target_num = 1000
     names_and_mats = [fasta2mat(f, False, False) for f in only_files]
     names_and_mats_ungapped = [gap_filter(n, m, gap_thr) for n, m in names_and_mats]
     # union all taxon names
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     concat = [i.tobytes().decode("utf-8") for i in concat]
     concat_fp = tempfile.NamedTemporaryFile(delete=False, mode='w+t')
     fasttree_log = tempfile.NamedTemporaryFile(delete=False, mode='w+t').name
-    fasttree_out = tempfile.NamedTemporaryFile(delete=False, mode='w+t').name
+    fasttree_out = "mainlines_fasttree.nwk"
 
     with open(concat_fp.name, "w") as f:
         for ids, seq in enumerate(concat):
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     while tcur - tmin >= stop_cond and tmax - tcur >= stop_cond:
         numiter += 1
         #print(numiter)
-        s = ["TreeCluster.py", "-i", fasttree_out, "-m", "max_clade", "-t", str(tcur), "-o", treecluster_out]
+        s = ["TreeCluster.py", "-i", fasttree_out, "-m", "max", "-t", str(tcur), "-o", treecluster_out]
         call(s, stdout=nldef, stderr=nldef)
         with open(treecluster_out, "r") as tc_output:
             tc_output.readline()
